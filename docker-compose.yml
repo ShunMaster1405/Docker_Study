@@ -1,0 +1,11 @@
+services:
+  linux-server:
+    image: ubuntu:24.04
+    container_name: ubuntu-playground
+    tty: true
+    ports:
+      - "8080:80"
+      - "2222:22"
+    volumes:
+      - ./misarchivos:/root/workspace
+    restart: unless-stopped
