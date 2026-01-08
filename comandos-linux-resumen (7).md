@@ -1,5 +1,36 @@
 # Guía Práctica: Gestión de Usuarios en Linux
 
+## Guía rápida: monitoreo en contenedor Ubuntu
+- Entrar al contenedor: `docker exec -it <id|nombre> bash`
+- Espacio en disco: `df -h` (uso por punto de montaje), `df -hT` (tipo FS), `du -sh /ruta/* | sort -h` (directorios que más pesan)
+- Monitoreo de RAM: `free -h`; interactivo: `top` (por defecto) o `htop` (instalar con `apt update && apt install -y htop`)
+- Procesos: `ps aux --sort=-rss | head` (más RAM), `ps -eo pid,cmd,%cpu,%mem --sort=-%cpu | head` (más CPU), `pstree -p` (requiere paquete `psmisc`)
+- Alertas básicas (script dentro del contenedor): crea `/opt/alerts/check-resources.sh`, hazlo ejecutable y agenda con cron
+
+```bash
+#!/bin/bash
+set -euo pipefail
+DISK_LIMIT=80
+RAM_LIMIT=80
+LOG=/var/log/simple-alerts.log
+
+check_disk() {
+  used=$(df -P / | awk 'NR==2 {print $5}' | tr -d "%")
+  [ "$used" -ge "$DISK_LIMIT" ] && echo "$(date -Is) alerta: disco / = ${used}%" >> "$LOG"
+}
+
+check_ram() {
+  used=$(free -m | awk 'NR==2 {printf "%.0f", $3*100/$2}')
+  [ "$used" -ge "$RAM_LIMIT" ] && echo "$(date -Is) alerta: RAM = ${used}%" >> "$LOG"
+}
+
+check_disk
+check_ram
+```
+
+- Cron cada 5 min: agrega en `/etc/crontab` → `*/5 * * * * root /opt/alerts/check-resources.sh`
+- Ver alertas: `tail -f /var/log/simple-alerts.log`
+
 ## Herramientas Necesarias
 
 Antes de comenzar, instala las siguientes herramientas:
