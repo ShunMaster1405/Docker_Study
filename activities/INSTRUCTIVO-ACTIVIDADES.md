@@ -53,7 +53,7 @@ chmod +x scripts/generar-actividad-seguridad.sh
 
 ```bash
 # Ejecutar el script
-./scripts/generar-actividad-monitoreo.sh
+./root/scripts/generar-actividad-monitoreo.sh
 
 # El script mostrará un menú interactivo:
 # 1. Generar procesos CPU
@@ -78,7 +78,7 @@ chmod +x scripts/generar-actividad-seguridad.sh
 
 ```bash
 # Ejecutar el script
-./scripts/generar-actividad-seguridad.sh
+./root/scripts/generar-actividad-seguridad.sh
 
 # El script mostrará un menú interactivo:
 # 1. Crear estructura de permisos

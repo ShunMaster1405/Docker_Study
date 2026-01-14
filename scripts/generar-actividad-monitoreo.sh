@@ -50,19 +50,20 @@ crear_proceso_cpu() {
     
     (
         end_time=$(($(date +%s) + $tiempo))
+        # Bucle simple que consume CPU sin crear subprocesos
         while [ $(date +%s) -lt $end_time ]; do
-            # Calcular ciclos según el uso deseado
-            # Uso de CPU aproximado basado en tiempo activo vs sleep
-            timeout 0.1 bash -c "while true; do : ; done" 2>/dev/null || true
-            # Sleep proporcional al uso (mayor uso = menos sleep)
-            # Simplificado: si uso > 50, sleep corto; si uso < 50, sleep largo
-            if [ $uso -gt 50 ]; then
-                sleep 0.1
-            else
-                sleep 0.3
-            fi
+            # Consumir CPU con operaciones matemáticas (no crea procesos nuevos)
+            i=0
+            # Más iteraciones = más CPU
+            iterations=$((uso * 1000))
+            while [ $i -lt $iterations ]; do
+                i=$((i + 1))
+            done
+            # Sleep proporcional (menor uso = más sleep)
+            sleep_time=$(awk "BEGIN {printf \"%.2f\", (100 - $uso) / 100}")
+            sleep $sleep_time 2>/dev/null || sleep 0.5
         done
-    ) > /dev/null 2>&1 &
+    ) &
     
     echo $! >> "$PID_FILE"
     echo -e "${GREEN}✓${NC} Proceso CPU '$nombre' iniciado (PID: $!, uso aproximado: ${uso}%, duración: ${tiempo}s)"
@@ -75,15 +76,29 @@ crear_proceso_ram() {
     local tiempo=$3
     
     (
-        # Crear variable que consume memoria
-        # Usar dd para crear archivo en memoria (más confiable)
-        data=$(dd if=/dev/zero bs=1M count=$mb 2>/dev/null | base64 2>/dev/null || head -c $(($mb * 1024 * 1024)) < /dev/zero 2>/dev/null)
+        # Crear cadena grande en memoria usando un archivo temporal en RAM
+        # Esto es más estable y no crea subprocesos constantemente
+        tmpfile="/dev/shm/ramtest_$$_$RANDOM"
+        
+        # Si /dev/shm no existe, usar /tmp
+        if [ ! -d "/dev/shm" ]; then
+            tmpfile="/tmp/ramtest_$$_$RANDOM"
+        fi
+        
+        # Crear archivo del tamaño especificado y leerlo en variable
+        dd if=/dev/zero of="$tmpfile" bs=1M count=$mb 2>/dev/null
+        data=$(cat "$tmpfile")
+        rm -f "$tmpfile"
+        
+        # Mantener la variable en memoria durante el tiempo especificado
         sleep $tiempo
+        
+        # Limpiar
         unset data
-    ) > /dev/null 2>&1 &
+    ) &
     
     echo $! >> "$PID_FILE"
-    echo -e "${GREEN}✓${NC} Proceso RAM '$nombre' iniciado (PID: $!, memoria: ${mb}MB, duración: ${tiempo}s)"
+    echo -e "${GREEN}✓${NC} Proceso RAM '$nombre' iniciado (PID: $!, memoria: ~${mb}MB, duración: ${tiempo}s)"
 }
 
 # Función para crear archivos grandes
@@ -100,23 +115,28 @@ crear_archivos_grandes() {
 
 # Función para crear procesos zombie (para práctica avanzada)
 crear_proceso_zombie() {
+    # Crear proceso padre que no hace wait() a su hijo
     (
-        # Crear un proceso hijo que termina pero no es waitado
-        (sleep 1; exit 0) &
-        sleep 10
-    ) > /dev/null 2>&1 &
+        # Proceso hijo que termina rápido
+        (sleep 2; exit 0) &
+        CHILD_PID=$!
+        # Padre duerme más tiempo sin hacer wait
+        sleep 30
+        # El hijo quedará como zombie hasta que el padre termine
+    ) &
     
     echo $! >> "$PID_FILE"
-    echo -e "${GREEN}✓${NC} Proceso que puede generar zombie iniciado (PID: $!)"
+    echo -e "${GREEN}✓${NC} Proceso zombie iniciado (PID padre: $!)"
+    echo -e "${YELLOW}Después de 2 segundos, verifica con: ps aux | awk '\$8 ~ /Z/'${NC}"
 }
 
 # Menú interactivo
 mostrar_menu() {
     echo -e "\n${YELLOW}=== Menú de Actividad ===${NC}"
-    echo "1. Generar procesos que consumen CPU (3 procesos, uso moderado)"
-    echo "2. Generar procesos que consumen RAM (2 procesos, 100MB cada uno)"
+    echo "1. Generar procesos que consumen CPU (3 procesos, duración: 15 min)"
+    echo "2. Generar procesos que consumen RAM (2 procesos, duración: 15 min)"
     echo "3. Crear archivos grandes en disco (5 archivos de 50MB)"
-    echo "4. Generar actividad mixta (CPU + RAM + Disco)"
+    echo "4. Generar actividad mixta (CPU + RAM + Disco, duración: 15 min)"
     echo "5. Generar proceso zombie (para práctica avanzada)"
     echo "6. Ver procesos generados actualmente"
     echo "7. Detener todos los procesos generados"
@@ -172,14 +192,14 @@ limpiar_archivos() {
 actividad_mixta() {
     echo -e "${GREEN}Generando actividad mixta...${NC}"
     
-    # CPU
-    crear_proceso_cpu "worker1" 30 60
-    crear_proceso_cpu "worker2" 50 60
-    crear_proceso_cpu "worker3" 20 60
-    
-    # RAM
-    crear_proceso_ram "memhog1" 100 60
-    crear_proceso_ram "memhog2" 150 60
+        # CPU
+        crear_proceso_cpu "worker1" 30 900
+        crear_proceso_cpu "worker2" 50 900
+        crear_proceso_cpu "worker3" 20 900
+        
+        # RAM
+        crear_proceso_ram "memhog1" 100 900
+        crear_proceso_ram "memhog2" 150 900
     
     # Disco
     crear_archivos_grandes 3 30
@@ -195,14 +215,14 @@ while true; do
     case $opcion in
         1)
             echo -e "\n${GREEN}Generando procesos CPU...${NC}"
-            crear_proceso_cpu "cpu_intensivo1" 40 120
-            crear_proceso_cpu "cpu_intensivo2" 60 120
-            crear_proceso_cpu "cpu_intensivo3" 30 120
+            crear_proceso_cpu "cpu_intensivo1" 40 900
+            crear_proceso_cpu "cpu_intensivo2" 60 900
+            crear_proceso_cpu "cpu_intensivo3" 30 900
             ;;
         2)
             echo -e "\n${GREEN}Generando procesos RAM...${NC}"
-            crear_proceso_ram "memoria1" 100 120
-            crear_proceso_ram "memoria2" 150 120
+            crear_proceso_ram "memoria1" 100 900
+            crear_proceso_ram "memoria2" 150 900
             ;;
         3)
             echo -e "\n${GREEN}Creando archivos grandes...${NC}"

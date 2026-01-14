@@ -24,7 +24,7 @@ Identificar procesos que consumen CPU usando `top`, `htop` y `ps`.
 
 1. **Ejecutar el script generador de actividad:**
    ```bash
-   ./scripts/generar-actividad-monitoreo.sh
+   /root/scripts/generar-actividad-monitoreo.sh
    ```
 
 2. **Seleccionar opción 1** (Generar procesos que consumen CPU)
