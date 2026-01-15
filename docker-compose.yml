@@ -3,6 +3,12 @@ services:
     image: ubuntu:24.04
     container_name: ubuntu-playground
     tty: true
+    # Límites de recursos (aplican al contenedor)
+    # CPU: "1.0" = 1 core equivalente; "0.5" = medio core
+    cpus: "1.0"
+    # Memoria RAM: unidades típicas: 256m, 1g
+    mem_limit: 512m
+    mem_reservation: 256m
     ports:
       - "8080:80"
       - "2222:22"
